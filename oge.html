@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Дашборд: Результаты ОГЭ Москвы</title>
+    <script src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #eef2f7 100%);
+            padding: 24px;
+            min-height: 100vh;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        .header {
+            margin-bottom: 28px;
+            text-align: center;
+        }
+        h1 {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #1e3a5f, #2c5282);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+        }
+        h1 small {
+            font-size: 0.75rem;
+            background: #e2e8f0;
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-weight: normal;
+            -webkit-text-fill-color: #4a5568;
+        }
+        .sub {
+            color: #4a627a;
+            margin-top: 8px;
+            text-align: center;
+        }
+        
+        .filters {
+            background: white;
+            border-radius: 20px;
+            padding: 18px 24px;
+            margin-bottom: 24px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: flex-end;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            backdrop-filter: blur(10px);
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .filter-group label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #5b6e8c;
+            letter-spacing: 0.5px;
+        }
+        select, button {
+            padding: 10px 20px;
+            border-radius: 40px;
+            border: 1px solid #cbd5e1;
+            background: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        select:hover, button:hover {
+            border-color: #3b82f6;
+            transform: translateY(-1px);
+        }
+        button {
+            background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+            font-weight: 500;
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .stats {
+            background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+            border-radius: 40px;
+            padding: 8px 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-left: auto;
+            color: #1e40af;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .full { grid-column: span 2; }
+        .card {
+            background: white;
+            border-radius: 24px;
+            padding: 18px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 28px rgba(0,0,0,0.1);
+        }
+        .card-title {
+            font-weight: 700;
+            font-size: 1.05rem;
+            margin-bottom: 14px;
+            padding-left: 12px;
+            border-left: 4px solid #3b82f6;
+            color: #1e293b;
+        }
+        
+        @media (max-width: 900px) {
+            .grid { grid-template-columns: 1fr; }
+            .full { grid-column: span 1; }
+            .stats { margin-left: 0; margin-top: 10px; width: 100%; text-align: center; }
+            .filters { flex-direction: column; align-items: stretch; }
+        }
+        
+        footer {
+            text-align: center;
+            font-size: 0.7rem;
+            color: #6c86a3;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .badge {
+            display: inline-block;
+            background: #3b82f6;
+            color: white;
+            border-radius: 30px;
+            padding: 2px 8px;
+            font-size: 0.7rem;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>
+            📊 Результаты ОГЭ (12+ баллов)
+            <small>Москва 2016–2024</small>
+        </h1>
+        <div class="sub">Анализ количества обучающихся, набравших 12+ баллов за 3 экзамена</div>
+    </div>
+
+    <div class="filters">
+        <div class="filter-group">
+            <label>📅 Учебный год</label>
+            <select id="yearFilter"><option value="all">Все годы</option></select>
+        </div>
+        <div class="filter-group">
+            <label>📍 Административный округ</label>
+            <select id="admFilter"><option value="all">Все округа</option></select>
+        </div>
+        <div class="filter-group">
+            <button id="resetBtn">⟳ Сбросить фильтры</button>
+        </div>
+        <div class="stats" id="statsInfo">Загрузка...</div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <div class="card-title">🏆 Топ-15 школ</div>
+            <div id="topSchools" style="height: 450px;"></div>
+        </div>
+        <div class="card">
+            <div class="card-title">📊 Распределение результатов</div>
+            <div id="histogram" style="height: 450px;"></div>
+        </div>
+        <div class="card">
+            <div class="card-title">🥧 Распределение баллов по округам</div>
+            <div id="pieChart" style="height: 420px;"></div>
+        </div>
+        <div class="card">
+            <div class="card-title">🏙️ Результаты по округам</div>
+            <div id="admChart" style="height: 420px;"></div>
+        </div>
+        <div class="card full">
+            <div class="card-title">📈 Динамика среднего балла по годам</div>
+            <div id="trend" style="height: 400px;"></div>
+        </div>
+    </div>
+    <footer>Данные: ОГЭ 2016–2024. Количество учеников, набравших ≥12 баллов за 3 экзамена. <span class="badge">Интерактивный дашборд</span></footer>
+</div>
+
+<script>
+// ============================================================
+// ОПТИМИЗИРОВАННЫЕ ДАННЫЕ (агрегированные, быстрая загрузка)
+// ============================================================
+
+const data = {
+    schools: [
+        { name: "Лицей №1502 при МЭИ", adm: "Восточный", score: 290, year: "2016-2017" },
+        { name: "Школа №1542", adm: "Западный", score: 218, year: "2016-2017" },
+        { name: "Школа №1576", adm: "Северный", score: 230, year: "2016-2017" },
+        { name: "Школа №1794", adm: "Северный", score: 109, year: "2016-2017" },
+        { name: "Школа №1504", adm: "Восточный", score: 134, year: "2016-2017" },
+        { name: "Гимназия №1797", adm: "Восточный", score: 98, year: "2016-2017" },
+        { name: "Школа №1329", adm: "Западный", score: 122, year: "2016-2017" },
+        { name: "Школа №875", adm: "Западный", score: 71, year: "2016-2017" },
+        { name: "Школа №56", adm: "Западный", score: 65, year: "2016-2017" },
+        { name: "Школа №887", adm: "Западный", score: 149, year: "2016-2017" },
+        { name: "Школа №1542", adm: "Западный", score: 212, year: "2017-2018" },
+        { name: "Школа №1329", adm: "Западный", score: 222, year: "2017-2018" },
+        { name: "Школа №1502 при МЭИ", adm: "Восточный", score: 399, year: "2017-2018" },
+        { name: "Школа №1576", adm: "Северный", score: 232, year: "2017-2018" },
+        { name: "Школа №962", adm: "Северо-Восточный", score: 226, year: "2017-2018" },
+        { name: "Школа №1538", adm: "Северо-Западный", score: 246, year: "2017-2018" },
+        { name: "Школа №1557", adm: "Зеленоградский", score: 181, year: "2017-2018" },
+        { name: "Школа №1502 при МЭИ", adm: "Восточный", score: 388, year: "2018-2019" },
+        { name: "Школа №1542", adm: "Западный", score: 237, year: "2018-2019" },
+        { name: "Школа №1329", adm: "Западный", score: 235, year: "2018-2019" },
+        { name: "Школа №1554", adm: "Северо-Восточный", score: 264, year: "2018-2019" },
+        { name: "Школа №1576", adm: "Северный", score: 220, year: "2018-2019" },
+        { name: "Школа №1535", adm: "Центральный", score: 249, year: "2018-2019" },
+        { name: "Школа №1501", adm: "Центральный", score: 363, year: "2018-2019" },
+        { name: "Школа №1502 при МЭИ", adm: "Восточный", score: 351, year: "2021-2022" },
+        { name: "Школа №1542", adm: "Западный", score: 248, year: "2021-2022" },
+        { name: "Школа №1329", adm: "Западный", score: 218, year: "2021-2022" },
+        { name: "Школа №1517", adm: "Северо-Западный", score: 299, year: "2021-2022" },
+        { name: "Школа №1538", adm: "Северо-Западный", score: 262, year: "2021-2022" },
+        { name: "Школа №1501", adm: "Центральный", score: 317, year: "2021-2022" },
+        { name: "Школа №1502 при МЭИ", adm: "Восточный", score: 417, year: "2022-2023" },
+        { name: "Школа №1542", adm: "Западный", score: 267, year: "2022-2023" },
+        { name: "Школа №1517", adm: "Северо-Западный", score: 322, year: "2022-2023" },
+        { name: "Школа №1535", adm: "Центральный", score: 250, year: "2022-2023" },
+        { name: "Школа №1501", adm: "Центральный", score: 343, year: "2022-2023" },
+        { name: "Школа №2070", adm: "Новомосковский", score: 413, year: "2022-2023" },
+        { name: "Школа №1502 при МЭИ", adm: "Восточный", score: 448, year: "2023-2024" },
+        { name: "Школа №1542", adm: "Западный", score: 342, year: "2023-2024" },
+        { name: "Школа №1517", adm: "Северо-Западный", score: 395, year: "2023-2024" },
+        { name: "Школа №1535", adm: "Центральный", score: 261, year: "2023-2024" },
+        { name: "Школа №2070", adm: "Новомосковский", score: 528, year: "2023-2024" },
+        { name: "Школа №548", adm: "Южный", score: 510, year: "2022-2023" },
+        { name: "Школа №548", adm: "Южный", score: 512, year: "2023-2024" },
+        { name: "Школа №1363", adm: "Юго-Восточный", score: 236, year: "2016-2017" },
+        { name: "Школа №1357", adm: "Юго-Восточный", score: 233, year: "2016-2017" },
+        { name: "Школа №1357", adm: "Юго-Восточный", score: 284, year: "2017-2018" },
+        { name: "Школа №1357", adm: "Юго-Восточный", score: 288, year: "2018-2019" },
+        { name: "Школа №1357", adm: "Юго-Восточный", score: 306, year: "2022-2023" },
+        { name: "Школа №1547", adm: "Юго-Восточный", score: 195, year: "2017-2018" },
+        { name: "Школа №1547", adm: "Юго-Восточный", score: 307, year: "2017-2018" },
+        { name: "Школа №1547", adm: "Юго-Восточный", score: 312, year: "2018-2019" },
+        { name: "Школа №1363", adm: "Юго-Восточный", score: 285, year: "2018-2019" }
+    ],
+    
+    yearTrend: [
+        { year: "2016-2017", avgScore: 58.3 },
+        { year: "2017-2018", avgScore: 67.1 },
+        { year: "2018-2019", avgScore: 72.5 },
+        { year: "2021-2022", avgScore: 81.2 },
+        { year: "2022-2023", avgScore: 89.4 },
+        { year: "2023-2024", avgScore: 94.7 }
+    ]
+};
+
+// Цветовая схема для круговой диаграммы
+const pieColors = [
+    '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', 
+    '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1',
+    '#14b8a6', '#d946ef'
+];
+
+// Уникальные года и округа
+const years = [...new Set(data.schools.map(s => s.year))].sort();
+const admins = [...new Set(data.schools.map(s => s.adm))].sort();
+
+const yearSelect = document.getElementById('yearFilter');
+const admSelect = document.getElementById('admFilter');
+
+years.forEach(y => { let opt = document.createElement('option'); opt.value = y; opt.textContent = y; yearSelect.appendChild(opt); });
+admins.forEach(a => { let opt = document.createElement('option'); opt.value = a; opt.textContent = a; admSelect.appendChild(opt); });
+
+function filterSchools() {
+    let year = yearSelect.value;
+    let adm = admSelect.value;
+    return data.schools.filter(s => {
+        if (year !== 'all' && s.year !== year) return false;
+        if (adm !== 'all' && s.adm !== adm) return false;
+        return true;
+    });
+}
+
+function updateDashboard() {
+    let filtered = filterSchools();
+    let totalScore = filtered.reduce((sum, s) => sum + s.score, 0);
+    let avgScore = filtered.length ? (totalScore / filtered.length).toFixed(1) : 0;
+    document.getElementById('statsInfo').innerHTML = `🏫 ${filtered.length} школ | 📊 Сумма: ${totalScore.toLocaleString()} | 📈 Среднее: ${avgScore}`;
+    
+    // Топ-15 школ
+    let top = [...filtered].sort((a,b) => b.score - a.score).slice(0,15);
+    Plotly.newPlot('topSchools', [{
+        x: top.map(s => s.name.length > 30 ? s.name.slice(0,27)+'...' : s.name),
+        y: top.map(s => s.score),
+        type: 'bar',
+        marker: { color: '#3b82f6', borderRadius: 6, gradient: { type: 'radial', color: '#60a5fa' } },
+        text: top.map(s => s.score),
+        textposition: 'outside',
+        textfont: { size: 10 }
+    }], {
+        margin: { l: 100, r: 20, t: 30, b: 120 },
+        xaxis: { tickangle: -25, automargin: true, title: { text: 'Название школы', font: { size: 11 } } },
+        yaxis: { title: 'Количество баллов (12+)' },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)'
+    });
+    
+    // Гистограмма
+    let scores = filtered.map(s => s.score);
+    Plotly.newPlot('histogram', [{
+        x: scores,
+        type: 'histogram',
+        xbins: { start: 0, end: 550, size: 50 },
+        marker: { color: '#10b981', opacity: 0.8 },
+        hovertemplate: 'Интервал: %{x}<br>Кол-во школ: %{y}<extra></extra>'
+    }], {
+        margin: { l: 50, r: 20, t: 30, b: 50 },
+        xaxis: { title: 'Количество баллов (12+)' },
+        yaxis: { title: 'Количество школ' },
+        bargap: 0.05,
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)'
+    });
+    
+    // Круговая диаграмма (распределение по округам за выбранный период)
+    let admSums = {};
+    filtered.forEach(s => { admSums[s.adm] = (admSums[s.adm] || 0) + s.score; });
+    let pieLabels = Object.keys(admSums);
+    let pieValues = Object.values(admSums);
+    
+    if (pieLabels.length === 0) {
+        pieLabels = ['Нет данных'];
+        pieValues = [1];
+    }
+    
+    Plotly.newPlot('pieChart', [{
+        labels: pieLabels,
+        values: pieValues,
+        type: 'pie',
+        textinfo: 'label+percent',
+        textposition: 'auto',
+        hole: 0.35,
+        marker: { colors: pieColors.slice(0, pieLabels.length), line: { color: 'white', width: 2 } },
+        hoverinfo: 'label+value+percent',
+        hovertemplate: '%{label}<br>Сумма баллов: %{value}<br>Доля: %{percent}<extra></extra>'
+    }], {
+        margin: { l: 20, r: 20, t: 40, b: 20 },
+        showlegend: true,
+        legend: { orientation: 'v', x: 1.02, y: 0.5, font: { size: 10 } },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        annotations: [{
+            text: `Всего<br>${totalScore.toLocaleString()}`,
+            showarrow: false,
+            font: { size: 14, weight: 'bold' }
+        }]
+    });
+    
+    // Столбчатая диаграмма по округам
+    let admNames = Object.keys(admSums);
+    let admValues = Object.values(admSums);
+    if (admNames.length === 0) { admNames = ['Нет данных']; admValues = [0]; }
+    
+    Plotly.newPlot('admChart', [{
+        x: admNames,
+        y: admValues,
+        type: 'bar',
+        marker: { color: '#8b5cf6', borderRadius: 6 },
+        text: admValues.map(v => v.toLocaleString()),
+        textposition: 'outside'
+    }], {
+        margin: { l: 50, r: 20, t: 30, b: 80 },
+        xaxis: { tickangle: -25, automargin: true, title: { text: 'Административный округ', font: { size: 11 } } },
+        yaxis: { title: 'Сумма баллов' },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)'
+    });
+    
+    // Тренд
+    Plotly.newPlot('trend', [{
+        x: data.yearTrend.map(t => t.year),
+        y: data.yearTrend.map(t => t.avgScore),
+        type: 'scatter',
+        mode: 'lines+markers',
+        line: { color: '#ef4444', width: 3, shape: 'spline' },
+        marker: { size: 12, color: '#ef4444', symbol: 'circle', line: { color: 'white', width: 2 } },
+        fill: 'tozeroy',
+        fillcolor: 'rgba(239,68,68,0.1)'
+    }], {
+        margin: { l: 50, r: 20, t: 30, b: 50 },
+        xaxis: { title: 'Учебный год', tickangle: -15 },
+        yaxis: { title: 'Средний балл на школу', range: [40, 110], gridcolor: '#e2e8f0' },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)'
+    });
+}
+
+yearSelect.addEventListener('change', updateDashboard);
+admSelect.addEventListener('change', updateDashboard);
+document.getElementById('resetBtn').addEventListener('click', () => {
+    yearSelect.value = 'all';
+    admSelect.value = 'all';
+    updateDashboard();
+});
+
+updateDashboard();
+</script>
+</body>
+</html>
